@@ -1,0 +1,143 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Property {
+  id              String   @id @default(cuid())
+  address         String
+  city            String
+  state           String
+  zipCode         String
+  price           Decimal  @db.Decimal(10, 2)
+  bedrooms        Int
+  bathrooms       Float
+  squareFeet      Int
+  lotSize         Float?
+  yearBuilt       Int?
+  propertyType    PropertyType
+  status          PropertyStatus
+  description     String   @db.Text
+  features        String[] @default([])
+  
+  // SEO fields
+  metaTitle       String?
+  metaDescription String?
+  slug            String   @unique
+  
+  // Relationships
+  agentId         String
+  agent           Agent    @relation(fields: [agentId], references: [id])
+  images          PropertyImage[]
+  inquiries       Inquiry[]
+  
+  // Timestamps
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  publishedAt     DateTime?
+  
+  // Indexes for performance
+  @@index([city, state])
+  @@index([price])
+  @@index([bedrooms, bathrooms])
+  @@index([status, publishedAt])
+  @@index([agentId])
+}
+
+model PropertyImage {
+  id          String   @id @default(cuid())
+  propertyId  String
+  property    Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  url         String
+  publicId    String   // Cloudinary public ID
+  caption     String?
+  order       Int      @default(0)
+  isPrimary   Boolean  @default(false)
+  width       Int?
+  height      Int?
+  createdAt   DateTime @default(now())
+  
+  @@index([propertyId])
+}
+
+model Agent {
+  id          String   @id @default(cuid())
+  name        String
+  email       String   @unique
+  phone       String
+  bio         String?  @db.Text
+  photoUrl    String?
+  licenseNumber String?
+  
+  // Stats
+  yearsExperience Int?
+  totalSales      Int      @default(0)
+  avgRating       Float?
+  reviewCount     Int      @default(0)
+  
+  // Relationships
+  properties  Property[]
+  inquiries   Inquiry[]
+  
+  // Timestamps
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  isActive    Boolean  @default(true)
+  
+  @@index([email])
+}
+
+model Inquiry {
+  id          String   @id @default(cuid())
+  propertyId  String
+  property    Property @relation(fields: [propertyId], references: [id])
+  agentId     String
+  agent       Agent    @relation(fields: [agentId], references: [id])
+  
+  // Contact info
+  name        String
+  email       String
+  phone       String?
+  message     String   @db.Text
+  
+  // Tracking
+  source      String?  // 'property_page', 'search', 'agent_profile'
+  status      InquiryStatus @default(NEW)
+  
+  createdAt   DateTime @default(now())
+  respondedAt DateTime?
+  
+  @@index([propertyId])
+  @@index([agentId])
+  @@index([createdAt])
+}
+
+enum PropertyType {
+  HOUSE
+  CONDO
+  TOWNHOUSE
+  MULTI_FAMILY
+  LAND
+  COMMERCIAL
+}
+
+enum PropertyStatus {
+  ACTIVE
+  PENDING
+  SOLD
+  OFF_MARKET
+}
+
+enum InquiryStatus {
+  NEW
+  CONTACTED
+  VIEWING_SCHEDULED
+  CLOSED
+}
